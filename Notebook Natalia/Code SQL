@@ -1,0 +1,624 @@
+Transformation dans Bigquery des tables-sources:
+
+Fichier: Percentage_type_plastic
+SELECT * FROM `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.Percentage_type_plastic` LIMIT 1000
+
+
+
+
+### Filtre sur 2 colonnes:
+SELECT
+ `Type_pollution`,
+ `Concentration_zones_critiques_part_par_m3`
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.Percentage_type_plastic`;
+
+
+
+
+### Filtre sur 3 colonnes:
+SELECT
+ `Type_pollution`,
+ `Quantite_tonnes_par_jour`,
+ `Concentration_zones_critiques_part_par_m3`
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.Percentage_type_plastic`;
+
+
+### Ajout d'une nouvelle colonne: "Concentration par tonne" avec le calcul de la concentration par m3
+SELECT
+ `Type_pollution`,
+ `Quantite_tonnes_par_jour`,
+ `Concentration_zones_critiques_part_par_m3`,
+ ROUND(`Concentration_zones_critiques_part_par_m3` / `Quantite_tonnes_par_jour`, 2) AS concentration_par_tonne
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.Percentage_type_plastic`
+WHERE
+ `Quantite_tonnes_par_jour` IS NOT NULL
+ AND `Concentration_zones_critiques_part_par_m3` IS NOT NULL;
+
+
+### KPI
+SELECT
+ 'Global Plastic KPI' AS KPI_Type,
+
+
+ ROUND(SUM(CASE
+   WHEN LOWER(`Type_pollution`) IN ('flottants', 'fond marin', 'microplastiques')
+   THEN `Quantite_tonnes_par_jour`
+   ELSE 0
+ END), 2) AS total_tonnes_jour,
+
+
+ ROUND(AVG(`Concentration_zones_critiques_part_par_m3`), 2) AS moyenne_concentration_m3,
+
+
+ ROUND(AVG(`Concentration_zones_critiques_part_par_m3` / `Quantite_tonnes_par_jour`), 2) AS ratio_concentration_par_tonne
+
+
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.Percentage_type_plastic`
+
+
+WHERE
+ `Quantite_tonnes_par_jour` IS NOT NULL
+ AND `Concentration_zones_critiques_part_par_m3` IS NOT NULL;
+
+
+
+Fichier: waste_categories
+
+
+### Groupement par les cathegories plastiques
+SELECT
+ CASE
+   WHEN Category IN ('Plastic', 'Polystyrene') THEN 'Plastic (incl. Polystyrene)'
+   ELSE 'Others'
+ END AS grouped_category,
+ ROUND(SUM(Values) * 100, 2) AS percentage
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.waste_categories`
+GROUP BY grouped_category;
+
+
+Fichier:  Requête marine_litter_data_codes sur matériaux
+SELECT * FROM `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.marine_litter_data_codes` LIMIT 1000
+
+
+
+
+SELECT
+ Material,
+ COUNT(*) AS nombre_occurrences,
+ ROUND(COUNT(*) * 100.0 / total.total_count, 2) AS pourcentage
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.marine_litter_data_codes`,
+ (
+   SELECT COUNT(*) AS total_count
+   FROM `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.marine_litter_data_codes`
+   WHERE Material IS NOT NULL
+ ) AS total
+WHERE Material IS NOT NULL
+GROUP BY
+ Material, total.total_count
+ORDER BY
+ pourcentage DESC;
+
+
+
+
+ SELECT COUNT(*) AS total_lignes
+FROM `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.marine_litter_data_codes`
+WHERE Material IS NOT NULL;
+
+
+Fichier cleaning_strategies_request2
+
+
+### Cibler les 3 colonnes pour la présentation graphiques
+SELECT
+ string_field_0 AS Technologie,
+ string_field_1 AS Description,
+ string_field_3 AS Resultats
+FROM
+ `projet-pollution-plastic`.`04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES`.`cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+
+
+### Préparation des données quantifiables:
+SELECT
+ string_field_0 AS Technologie,
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE 'non spécifié'
+ END AS Type_de_plastique,
+ string_field_1 AS Description,
+ string_field_2 AS Localisation,
+ string_field_3 AS Resultats
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+### Analyse de traiatement microplastqie et macroplastiques
+SELECT
+ string_field_0 AS Technologie,
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE 'non spécifié'
+ END AS Type_de_plastique
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+
+
+### Solutions
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 avec la logique micro/macro
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon ta règle : seulement pour micro-usines et strategie zero mettre NULL, sinon macroplastique
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN NULL
+   ELSE 'macroplastique'
+ END AS Type_de_plastique_2,
+
+
+ -- Calcul du total des solutions (nombre de colonnes non nulles)
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 avec la logique micro/macro
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon ta règle : seulement pour micro-usines et strategie zero mettre NULL, sinon macroplastique
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN NULL
+   ELSE 'macroplastique'
+ END AS Type_de_plastique_2,
+
+
+ -- Calcul du total des solutions (nombre de colonnes non nulles)
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 avec la logique micro/macro
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon ta règle : seulement pour micro-usines et strategie zero mettre NULL, sinon macroplastique
+ SELECT
+ string_field_0 AS Technologie,
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE 'non spécifié'
+ END AS Type_de_plastique,
+ string_field_1 AS Description,
+ string_field_2 AS Localisation,
+ string_field_3 AS Resultats
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+
+
+### 2 colonnes
+SELECT
+ string_field_0 AS Technologie,
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE 'non spécifié'
+ END AS Type_de_plastique
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+### Transformation
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 avec la logique micro/macro
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon ta règle : seulement pour micro-usines et strategie zero mettre NULL, sinon macroplastique
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN NULL
+   ELSE 'macroplastique'
+ END AS Type_de_plastique_2,
+
+
+ -- Calcul du total des solutions (nombre de colonnes non nulles)
+ (
+   CASE
+     WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 1 ELSE 0 END
+ +
+   CASE
+     WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 1 ELSE 0 END
+ +
+   CASE
+     WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 1 ELSE 0 END
+ +
+   CASE
+     WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 1 ELSE 0 END
+ ) AS Total_des_solutions
+
+
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+### La sommes
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 selon règles
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviales%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero dechet%' THEN 'microplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon règles
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviales%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%strategie zero dechet%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastique_2,
+
+
+ -- Calcul du total de solutions (1 si non NULL, 0 sinon, somme des 2 colonnes)
+ (CASE
+    WHEN LOWER(string_field_0) LIKE '%barrieres fluviales%' THEN 1 ELSE 0 END
+ + CASE
+     WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 2 ELSE 0 END
+ + CASE
+     WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 1 ELSE 0 END
+ + CASE
+     WHEN LOWER(string_field_0) LIKE '%strategie zero dechet%' THEN 2 ELSE 0 END
+ ) AS Total_de_solution
+
+
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+Fichier: Requêtes graphiques cleaning strategies
+
+
+SELECT * FROM `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies_request2` LIMIT 1000
+
+
+### Cibler les 3 colonnes pour la presentation grapgiques
+SELECT
+ string_field_0 AS Technologie,
+ string_field_1 AS Description,
+ string_field_3 AS Resultats
+FROM
+ `projet-pollution-plastic`.`04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES`.`cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+
+
+### Préparation des données quantifiables:
+SELECT
+ string_field_0 AS Technologie,
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE 'non spécifié'
+ END AS Type_de_plastique,
+ string_field_1 AS Description,
+ string_field_2 AS Localisation,
+ string_field_3 AS Resultats
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+### Analyse de traiatement microplastqie et macroplastiques
+SELECT
+ string_field_0 AS Technologie,
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE 'non spécifié'
+ END AS Type_de_plastique
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+
+
+### Solutions
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 avec la logique micro/macro
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon ta règle : seulement pour micro-usines et strategie zero mettre NULL, sinon macroplastique
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN NULL
+   ELSE 'macroplastique'
+ END AS Type_de_plastique_2,
+
+
+ -- Calcul du total des solutions (nombre de colonnes non nulles)
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 avec la logique micro/macro
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon ta règle : seulement pour micro-usines et strategie zero mettre NULL, sinon macroplastique
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN NULL
+   ELSE 'macroplastique'
+ END AS Type_de_plastique_2,
+
+
+ -- Calcul du total des solutions (nombre de colonnes non nulles)
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 avec la logique micro/macro
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon ta règle : seulement pour micro-usines et strategie zero mettre NULL, sinon macroplastique
+ SELECT
+ string_field_0 AS Technologie,
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE 'non spécifié'
+ END AS Type_de_plastique,
+ string_field_1 AS Description,
+ string_field_2 AS Localisation,
+ string_field_3 AS Resultats
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+
+
+### 2 colonnes
+SELECT
+ string_field_0 AS Technologie,
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE 'non spécifié'
+ END AS Type_de_plastique
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+### Transformation
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 avec la logique micro/macro
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon ta règle : seulement pour micro-usines et strategie zero mettre NULL, sinon macroplastique
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN NULL
+   ELSE 'macroplastique'
+ END AS Type_de_plastique_2,
+
+
+ -- Calcul du total des solutions (nombre de colonnes non nulles)
+ (
+   CASE
+     WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 1 ELSE 0 END
+ +
+   CASE
+     WHEN LOWER(string_field_0) LIKE '%strategie zero%' THEN 1 ELSE 0 END
+ +
+   CASE
+     WHEN LOWER(string_field_0) LIKE '%barrieres fluviale%' THEN 1 ELSE 0 END
+ +
+   CASE
+     WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 1 ELSE 0 END
+ ) AS Total_des_solutions
+
+
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+### La sommes
+SELECT
+ string_field_0 AS Technologie,
+
+
+ -- Type_de_plastqique_1 selon règles
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviales%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'microplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%strategie zero dechet%' THEN 'microplastique'
+   ELSE NULL
+ END AS Type_de_plastqique_1,
+
+
+ -- Type_de_plastique_2 selon règles
+ CASE
+   WHEN LOWER(string_field_0) LIKE '%barrieres fluviales%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 'macroplastique'
+   WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN NULL
+   WHEN LOWER(string_field_0) LIKE '%strategie zero dechet%' THEN 'macroplastique'
+   ELSE NULL
+ END AS Type_de_plastique_2,
+
+
+ -- Calcul du total de solutions (1 si non NULL, 0 sinon, somme des 2 colonnes)
+ (CASE
+    WHEN LOWER(string_field_0) LIKE '%barrieres fluviales%' THEN 1 ELSE 0 END
+ + CASE
+     WHEN LOWER(string_field_0) LIKE '%micro-usines%' THEN 2 ELSE 0 END
+ + CASE
+     WHEN LOWER(string_field_0) LIKE '%plongees de nettoyage%' THEN 1 ELSE 0 END
+ + CASE
+     WHEN LOWER(string_field_0) LIKE '%strategie zero dechet%' THEN 2 ELSE 0 END
+ ) AS Total_de_solution
+
+
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.cleaning_strategies`
+WHERE
+ LOWER(string_field_0) != 'technologie'
+
+
+Fichier: percentage_type_plastic_KPI_global
+SELECT * FROM `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.Percentage_type_plastic` LIMIT 1000
+
+
+### KPI
+SELECT
+ 'Global Plastic KPI' AS KPI_Type,
+
+
+ ROUND(SUM(CASE
+   WHEN LOWER(`Type_pollution`) IN ('flottants', 'fond marin', 'microplastiques')
+   THEN `Quantite_tonnes_par_jour`
+   ELSE 0
+ END), 2) AS total_tonnes_jour,
+
+
+ ROUND(AVG(`Concentration_zones_critiques_part_par_m3`), 2) AS moyenne_concentration_m3,
+
+
+ ROUND(AVG(`Concentration_zones_critiques_part_par_m3` / `Quantite_tonnes_par_jour`), 2) AS ratio_concentration_par_tonne
+
+
+FROM
+ `projet-pollution-plastic.04_PROPOSITIONS_TRAITEMENT_DECHETS_PLASTIQUES_ZONES.Percentage_type_plastic`
+
+
+WHERE
+ `Quantite_tonnes_par_jour` IS NOT NULL
+ AND `Concentration_zones_critiques_part_par_m3` IS NOT NULL;
